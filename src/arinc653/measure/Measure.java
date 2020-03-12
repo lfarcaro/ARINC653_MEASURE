@@ -30,15 +30,18 @@ public class Measure {
 	public static final int COMMAND_CONFIGURE_ICACHE_ENA = 0x00000200;
 	public static final int COMMAND_CONFIGURE_ICACHE_CLR = 0x00000400;
 
-	// Configuration setup
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_DIS;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_ENA;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_DIS;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_ENA;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_DIS;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_ENA;
-//	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_DIS;
-	public static final int COMMAND_CONFIGURE_STATE = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_ENA;
+	// Serial port configuration
+	public static final String SERIALPORT_NAME = "COM7";
+
+	// Configuration flags
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_DIS;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_ENA;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_DIS;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_DIS | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_ENA;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_DIS;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_DIS | COMMAND_CONFIGURE_ICACHE_ENA;
+//	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_DIS;
+	public static final int COMMAND_CONFIGURE_FLAGS = COMMAND_CONFIGURE_BPRED_ENA | COMMAND_CONFIGURE_DCACHE_ENA | COMMAND_CONFIGURE_ICACHE_ENA;
 
 	/**
 	 * Main method.
@@ -47,23 +50,41 @@ public class Measure {
 	 */
 	public static void main(String[] args) {
 		try {
+
+			// Shows message
+			System.out.println("Searching for port '" + SERIALPORT_NAME + "'...");
+
+			// Searches for selected serial port
 			SerialComm scSerialPort = null;
 			SerialComm[] scCommPorts = SerialComm.getCommPorts();
-			System.out.println("Found " + scCommPorts.length + " ports:");
 			for (int i = 0; i < scCommPorts.length; i++) {
-				System.out.println(scCommPorts[i].getSystemPortName() + " (" + scCommPorts[i].getDescriptivePortName() + ")");
-				if ("COM7".equals(scCommPorts[i].getSystemPortName())) {
+				if (SERIALPORT_NAME.equals(scCommPorts[i].getSystemPortName())) {
 					scSerialPort = scCommPorts[i];
 				}
 			}
 			if (scSerialPort == null) {
-				System.out.println("Not found");
+
+				// Shows message
+				System.out.println("Serial port '" + SERIALPORT_NAME + "' not found");
 				return;
 			}
+
+			// Shows message
+			System.out.println("Serial port '" + SERIALPORT_NAME + "' found, configuring...");
+
+			// Sets serial port parameters
 			scSerialPort.setComPortParameters(115200, 8, SerialComm.ONE_STOP_BIT, SerialComm.NO_PARITY);
 			scSerialPort.setComPortTimeouts(SerialComm.TIMEOUT_READ_BLOCKING | SerialComm.TIMEOUT_WRITE_BLOCKING, 0, 0);
+
+			// Shows message
+			System.out.println("Opening serial port...");
+
+			// Opens serial port
 			scSerialPort.openPort();
 			try {
+
+				// Shows message
+				System.out.println("Serial port open");
 
 				// Gets streams
 				DataInputStream isInputStream = new DataInputStream(scSerialPort.getInputStream());
@@ -80,28 +101,35 @@ public class Measure {
 
 				// Sends configuration command
 				osOutputStream.writeInt(COMMAND_CONFIGURE);
-				osOutputStream.writeInt(COMMAND_CONFIGURE_STATE);
+				osOutputStream.writeInt(COMMAND_CONFIGURE_FLAGS);
 
 				// Shows message
 				System.out.println("Configuration applied");
 
 				// Measuring loop
-				while (true) {
+				for (int i = 0; i < 1000; i++) {
 
 					// Sends measurement request
 					osOutputStream.writeInt(COMMAND_MEASURE);
 					if (isInputStream.readInt() != COMMAND_MEASURE) {
 						throw new RuntimeException("Measure command rejected");
 					}
+
+					// Reads measured value
 					int inValue = isInputStream.readInt();
+
+					// Shows measurement
 					System.out.println("Measured value: " + inValue);
 				}
 			} finally {
+
+				// Closes serial port
 				scSerialPort.closePort();
 			}
-		} catch (Exception e) {
-			// TODO
-			e.printStackTrace();
+		} catch (Throwable t) {
+
+			// Prints exception
+			t.printStackTrace();
 		}
 	}
 }
